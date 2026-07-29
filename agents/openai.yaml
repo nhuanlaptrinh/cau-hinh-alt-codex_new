@@ -1,0 +1,4 @@
+interface:
+  display_name: "Cấu hình ALT Provider cho Codex"
+  short_description: "Cấu hình Codex qua ALT Gateway trên Windows, Linux và macOS"
+  default_prompt: "Hãy cấu hình Codex Extension trong Antigravity hoặc Codex CLI trên máy này dùng ALT Gateway, giữ an toàn API key và kiểm tra kết nối."

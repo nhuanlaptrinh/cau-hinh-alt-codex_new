@@ -1,0 +1,9 @@
+model_provider = "router"
+model = "GPT-5.6-sol"
+model_reasoning_effort = "xhigh"
+preferred_auth_method = "apikey"
+
+[model_providers.router]
+name = "router"
+base_url = "https://codex.anhlaptrinh.vn/v1"
+wire_api = "responses"

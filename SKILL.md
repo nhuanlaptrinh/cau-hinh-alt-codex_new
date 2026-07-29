@@ -1,0 +1,279 @@
+---
+name: cau-hinh-alt-codex
+description: Cài đặt hoặc sửa cấu hình Codex Extension trong Antigravity và Codex CLI để dùng chung ALT Gateway trên Windows, Linux, macOS hoặc VPS. Use khi người dùng muốn mang cấu hình tương tự /root/.codex/config.toml sang máy khác, copy bộ auth.json và config.toml vào thư mục .codex của user, cấu hình model_provider/model_providers trong config.toml, đặt ALT_KEY an toàn, kiểm tra /v1/models, hoặc xử lý lỗi Codex không nhận provider ALT.
+---
+
+# Cấu Hình Codex Qua ALT Gateway Đa Nền Tảng
+
+## Mục Tiêu
+
+Cấu hình Codex Extension trong Antigravity và Codex CLI trên máy khác theo mẫu đang dùng trên VPS:
+
+```toml
+model_provider = "alt"
+model = "GPT-5.6"
+model_reasoning_effort = "medium"
+
+[model_providers.alt]
+name = "ALT"
+base_url = "https://codex.anhlaptrinh.vn/v1"
+env_key = "ALT_KEY"
+```
+
+API key thật chỉ nằm trong biến môi trường `ALT_KEY`, không ghi trực tiếp vào `config.toml`.
+
+## Khi Dùng Skill
+
+- Cài Codex Extension trong Antigravity trên Windows, Linux hoặc macOS để chạy qua ALT Gateway.
+- Đồng bộ cách cấu hình từ VPS `/root/.codex/config.toml` sang máy khác.
+- Sửa lỗi provider, model, endpoint, biến môi trường hoặc lỗi `401`/không kết nối.
+- Cấu hình Codex CLI và extension dùng chung user-level config.
+
+## Quy Tắc An Toàn
+
+- Không đọc hoặc in toàn bộ file cấu hình nếu file có thể chứa secret; chỉ lấy các khóa cần thiết và che giá trị nhạy cảm.
+- Không ghi API key thật vào skill, tài liệu, repo, shell history hoặc câu trả lời cuối.
+- `env_key` phải là tên biến môi trường `ALT_KEY`, tuyệt đối không phải API key thật.
+- Luôn backup `config.toml` trước khi sửa nếu file đã tồn tại.
+- Không ghi đè các phần cấu hình khác như `[projects]`, MCP, sandbox hoặc trust nếu task không yêu cầu.
+- Không yêu cầu người dùng gửi API key vào chat. Cho người dùng tự nhập trực tiếp trên máy.
+
+## Vị Trí Cấu Hình
+
+| Hệ điều hành | File user config |
+|---|---|
+| Windows | `%USERPROFILE%\.codex\config.toml` |
+| Linux | `${CODEX_HOME:-$HOME/.codex}/config.toml` |
+| macOS | `${CODEX_HOME:-$HOME/.codex}/config.toml` |
+| VPS chạy root | `/root/.codex/config.toml` |
+
+Nếu có `CODEX_HOME`, ưu tiên thư mục đó. Extension và CLI phải chạy dưới cùng tài khoản người dùng để đọc cùng cấu hình và biến môi trường.
+
+## Sao Chép Bộ File Mẫu
+
+Trên Windows, dùng cách này làm phương thức triển khai ưu tiên khi người dùng yêu cầu áp dụng cấu hình đi kèm skill: copy nguyên trạng đúng hai file sau, không tự tạo lại nội dung và không trộn với file mẫu khác:
+
+- `<skill-dir>\auth.json`
+- `<skill-dir>\config.toml`
+
+Copy hai file vào thư mục `.codex` của tài khoản Windows đích. Đích thường có dạng `C:\Users\<username>\.codex`; `C:\Users\nhuan\.codex` chỉ là một ví dụ. Không ghi cứng `nhuan`: với user hiện tại, lấy profile từ `$env:USERPROFILE`; với user khác, dùng đường dẫn profile chính xác do người dùng chỉ định. Nếu cấu hình user hiện tại và `CODEX_HOME` đã được đặt, ưu tiên `CODEX_HOME`.
+
+Phân biệt rõ yêu cầu cập nhật skill và yêu cầu áp dụng cấu hình:
+
+- Nếu người dùng chỉ yêu cầu cập nhật/chỉnh sửa skill hoặc xem hướng dẫn, chỉ sửa và xác thực skill rồi dừng. Không tạo thư mục `.codex`, không backup, không copy file, không restart ứng dụng và không test gateway.
+- Chỉ chạy thao tác copy khi người dùng yêu cầu rõ ràng việc áp dụng, cài đặt hoặc đồng bộ cấu hình lên tài khoản đích.
+- `auth.json` có thể chứa thông tin xác thực: không đọc hoặc in nội dung, không đưa vào log/chat, và không commit file này nếu chứa secret.
+
+### Windows PowerShell
+
+Đặt `$sourceDir` thành thư mục chứa `auth.json`, `config.toml` và `SKILL.md`. Mặc định `$targetProfile` là profile của user đang chạy; thay biến này bằng đường dẫn profile đầy đủ, chẳng hạn `C:\Users\ten-nguoi-dung`, khi người dùng chọn tài khoản khác.
+
+```powershell
+$sourceDir = "D:\01.VPS\skill_v03\cau-hinh-alt-codex_new"
+$targetProfile = $env:USERPROFILE
+$codexHome = if (($targetProfile -eq $env:USERPROFILE) -and $env:CODEX_HOME) {
+    $env:CODEX_HOME
+} else {
+    Join-Path $targetProfile ".codex"
+}
+$fileNames = @("auth.json", "config.toml")
+$stamp = Get-Date -Format yyyyMMdd-HHmmss
+
+New-Item -ItemType Directory -Force -Path $codexHome | Out-Null
+foreach ($fileName in $fileNames) {
+    $sourcePath = Join-Path $sourceDir $fileName
+    $destinationPath = Join-Path $codexHome $fileName
+    if (-not (Test-Path -LiteralPath $sourcePath -PathType Leaf)) {
+        throw "Không tìm thấy file nguồn: $sourcePath"
+    }
+    if (Test-Path -LiteralPath $destinationPath -PathType Leaf) {
+        Copy-Item -LiteralPath $destinationPath -Destination "$destinationPath.bak-$stamp"
+    }
+    Copy-Item -LiteralPath $sourcePath -Destination $destinationPath -Force
+}
+```
+
+Sau khi chạy, chỉ xác nhận hai file đích tồn tại; không đọc hoặc in giá trị trong `auth.json`. Báo cáo đường dẫn đích thực tế từ `$codexHome`, không giả định tên user là `nhuan`.
+
+## Workflow Chuẩn
+
+1. Kiểm tra phạm vi yêu cầu. Nếu người dùng chỉ yêu cầu cập nhật skill, sửa và xác thực skill rồi dừng, không áp dụng cấu hình.
+2. Khi được yêu cầu áp dụng, xác định hệ điều hành, tài khoản đích, profile đích và việc user hiện tại có dùng `CODEX_HOME` hay không.
+3. Kiểm tra Codex Extension/Codex CLI đã được cài. Không tự cài extension nếu chưa biết đúng extension ID hoặc nguồn cài đặt.
+4. Nếu người dùng yêu cầu dùng bộ file đi kèm skill, làm theo mục **Sao Chép Bộ File Mẫu** và copy đúng `auth.json`, `config.toml`.
+5. Xác định đường dẫn user config và tạo thư mục `.codex` nếu chưa có.
+6. Backup từng file đích đã tồn tại với timestamp trước khi copy hoặc sửa.
+7. Chỉ khi người dùng yêu cầu chỉnh thủ công, cập nhật các khóa cần thiết trong `config.toml` và giữ nguyên cấu hình không liên quan.
+8. Nếu cấu hình dùng biến `ALT_KEY`, đặt API key thật bằng cách không làm lộ key và chỉ kiểm tra biến đã tồn tại, không in giá trị.
+9. Khi người dùng yêu cầu kiểm tra, test endpoint `/v1/models`, rồi restart hoàn toàn Antigravity/Codex Extension.
+10. Mở phiên Codex mới và xác nhận provider/model hoạt động.
+
+## Windows PowerShell
+
+### Tạo thư mục và backup
+
+```powershell
+$codexHome = if ($env:CODEX_HOME) { $env:CODEX_HOME } else { Join-Path $env:USERPROFILE ".codex" }
+$configPath = Join-Path $codexHome "config.toml"
+New-Item -ItemType Directory -Force -Path $codexHome | Out-Null
+if (Test-Path $configPath) {
+    Copy-Item $configPath "$configPath.bak-$(Get-Date -Format yyyyMMdd-HHmmss)"
+}
+notepad $configPath
+```
+
+Thêm hoặc cập nhật mẫu cấu hình ở phần **Mục Tiêu**, không xóa các bảng khác.
+
+### Lưu API key an toàn
+
+Ưu tiên nhập ẩn trong PowerShell để key không xuất hiện trong lệnh:
+
+```powershell
+$secureKey = Read-Host "Nhap ALT API key" -AsSecureString
+$plainKey = [System.Net.NetworkCredential]::new("", $secureKey).Password
+[Environment]::SetEnvironmentVariable("ALT_KEY", $plainKey, "User")
+Remove-Variable plainKey, secureKey
+```
+
+Đóng hoàn toàn Antigravity rồi mở lại vì process đang chạy không tự nhận User Environment mới.
+
+### Kiểm tra không lộ key
+
+```powershell
+if ([Environment]::GetEnvironmentVariable("ALT_KEY", "User")) { "ALT_KEY=set" } else { "ALT_KEY=missing" }
+```
+
+### Test gateway
+
+Chạy trong cửa sổ PowerShell mới sau khi restart terminal:
+
+```powershell
+$key = [Environment]::GetEnvironmentVariable("ALT_KEY", "User")
+curl.exe -sS -o NUL -w "%{http_code}`n" -H "Authorization: Bearer $key" --max-time 20 "https://codex.anhlaptrinh.vn/v1/models"
+Remove-Variable key
+```
+
+## Linux
+
+### Tạo thư mục và backup
+
+```bash
+codex_home="${CODEX_HOME:-$HOME/.codex}"
+config_path="$codex_home/config.toml"
+mkdir -p "$codex_home"
+[ ! -f "$config_path" ] || cp -a "$config_path" "$config_path.bak-$(date +%Y%m%d-%H%M%S)"
+${EDITOR:-nano} "$config_path"
+```
+
+### Lưu API key
+
+Nhập ẩn, sau đó thêm dòng export vào file shell profile phù hợp mà không in key ra màn hình:
+
+```bash
+read -rsp 'Nhap ALT API key: ' ALT_KEY; echo
+export ALT_KEY
+```
+
+Để dùng sau khi đăng nhập lại, lưu bằng trình quản lý secret của hệ điều hành nếu có. Nếu buộc phải dùng shell profile, thêm thủ công `export ALT_KEY="..."` vào `~/.bashrc`, `~/.zshrc` hoặc file môi trường của desktop session, đặt quyền file `600`, và không commit file đó.
+
+Antigravity mở từ desktop có thể không đọc `~/.bashrc`. Khi đó đặt biến trong môi trường desktop/login session hoặc khởi động Antigravity từ terminal đã có biến.
+
+### Kiểm tra và test
+
+```bash
+[ -n "${ALT_KEY:-}" ] && echo 'ALT_KEY=set' || echo 'ALT_KEY=missing'
+status=$(curl -sS -o /dev/null -w '%{http_code}' -H "Authorization: Bearer $ALT_KEY" --max-time 20 'https://codex.anhlaptrinh.vn/v1/models')
+printf 'HTTP %s\n' "$status"
+```
+
+## macOS
+
+File cấu hình giống Linux: `${CODEX_HOME:-$HOME/.codex}/config.toml`.
+
+Antigravity mở từ Finder/Dock thường không nhận biến chỉ khai báo trong `~/.zshrc`. Dùng Keychain hoặc đặt biến cho GUI session. Cách tạm thời cho phiên đăng nhập hiện tại:
+
+```bash
+read -rsp 'Nhap ALT API key: ' ALT_KEY; echo
+launchctl setenv ALT_KEY "$ALT_KEY"
+unset ALT_KEY
+```
+
+Sau đó thoát hoàn toàn và mở lại Antigravity. Kiểm tra tên biến mà không in key:
+
+```bash
+[ -n "$(launchctl getenv ALT_KEY)" ] && echo 'ALT_KEY=set' || echo 'ALT_KEY=missing'
+```
+
+Lưu ý: `launchctl setenv` không phải cơ chế lưu secret bền vững qua mọi lần đăng nhập. Với máy dùng lâu dài, ưu tiên macOS Keychain hoặc cơ chế quản lý môi trường doanh nghiệp của máy.
+
+## Cập Nhật Config Không Phá Phần Khác
+
+Nếu file đã có nhiều cấu hình, không thay toàn bộ file bằng một heredoc. Hãy sửa TOML có chủ đích:
+
+- Đảm bảo `model_provider = "alt"`.
+- Đảm bảo `model = "GPT-5.6"`.
+- Đảm bảo `model_reasoning_effort = "medium"`, trừ khi người dùng yêu cầu mức khác.
+- Tạo hoặc cập nhật `[model_providers.alt]` với `name`, `base_url`, `env_key` như mẫu.
+- Giữ nguyên mọi bảng `[projects."..."]`, MCP và cấu hình khác.
+
+## Xử Lý Lỗi
+
+### `env_key` chứa API key thật
+
+Sai:
+
+```toml
+env_key = "sk-..."
+```
+
+Đúng:
+
+```toml
+env_key = "ALT_KEY"
+```
+
+Nếu phát hiện lỗi này, không nhắc lại giá trị key trong output. Hướng dẫn người dùng xoay vòng key nếu key từng bị lưu vào repo, log hoặc chat.
+
+### HTTP `401`
+
+- Không gửi Authorization mà nhận `401`: gateway có thể vẫn hoạt động bình thường.
+- Đã gửi key mà vẫn `401`: key thiếu, sai, hết hạn hoặc không có quyền.
+- Kiểm tra process Antigravity có thực sự nhận `ALT_KEY` sau khi restart.
+
+### HTTP `404`
+
+Kiểm tra `base_url` có kết thúc bằng `/v1` và URL test là `/v1/models`. Không ghép thành `/v1/v1/models`.
+
+### Không kết nối, timeout hoặc lỗi DNS
+
+Kiểm tra internet, DNS, proxy/firewall, chứng chỉ TLS và khả năng truy cập `https://codex.anhlaptrinh.vn` từ chính máy đó.
+
+### CLI chạy được nhưng extension không chạy
+
+Extension có thể chạy trong môi trường GUI khác terminal. Kiểm tra biến môi trường của desktop session, đúng user home, `CODEX_HOME`, rồi restart toàn bộ Antigravity.
+
+### Extension vẫn dùng provider cũ
+
+- Xác nhận đang sửa user config đúng tài khoản.
+- Tìm project-local config có thể ghi đè, nhưng không tự xóa.
+- Reload window hoặc thoát hoàn toàn Antigravity rồi mở lại.
+- Mở phiên chat Codex mới thay vì dùng phiên cũ.
+
+## Tiêu Chí Hoàn Tất
+
+- `config.toml` đúng đường dẫn của user chạy Antigravity.
+- Provider là `alt`, model là `GPT-5.6`, endpoint là `https://codex.anhlaptrinh.vn/v1`.
+- `env_key = "ALT_KEY"`, không có API key thật trong file.
+- Biến môi trường tồn tại trong đúng GUI/login session.
+- `/v1/models` trả `200` khi gửi key hợp lệ.
+- Antigravity đã restart và phiên Codex mới hoạt động.
+
+## Mẫu Báo Cáo
+
+```text
+Đã cấu hình Codex Extension/Codex CLI dùng ALT Gateway trên <Windows|Linux|macOS>.
+File cấu hình: <đường dẫn config.toml>.
+API key được lưu qua biến ALT_KEY, không ghi vào config hoặc báo cáo.
+Kiểm tra gateway: HTTP <mã>.
+Đã yêu cầu restart hoàn toàn Antigravity và mở phiên Codex mới.
+```
