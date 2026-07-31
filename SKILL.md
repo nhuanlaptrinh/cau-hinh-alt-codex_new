@@ -1,6 +1,6 @@
 ---
 name: cau-hinh-alt-codex
-description: Cài đặt hoặc sửa cấu hình Codex Extension trong Antigravity và Codex CLI để dùng chung ALT Gateway trên Windows, Linux, macOS hoặc VPS. Use khi người dùng muốn mang cấu hình tương tự /root/.codex/config.toml sang máy khác, copy bộ auth.json và config.toml vào thư mục .codex của user, cấu hình model_provider/model_providers trong config.toml, đặt ALT_KEY an toàn, kiểm tra /v1/models, hoặc xử lý lỗi Codex không nhận provider ALT.
+description: Cài đặt hoặc sửa cấu hình Codex Extension trong Antigravity và Codex CLI để dùng chung ALT Gateway trên Windows, Linux, macOS hoặc VPS. Use khi người dùng muốn mang cấu hình tương tự /root/.codex/config.toml sang máy khác, copy bộ auth.json và config.toml vào thư mục .codex của user, cấu hình model_provider/model_providers trong config.toml, đặt ALT_KEY an toàn, chọn một trong ba model GPT-5.6-sol/GPT-5.6-terra/GPT-5.6-luna, kiểm tra /v1/models, hoặc xử lý lỗi Codex không nhận provider ALT.
 ---
 
 # Cấu Hình Codex Qua ALT Gateway Đa Nền Tảng
@@ -22,12 +22,33 @@ env_key = "ALT_KEY"
 
 API key thật chỉ nằm trong biến môi trường `ALT_KEY`, không ghi trực tiếp vào `config.toml`.
 
+## Model Được Hỗ Trợ
+
+Skill chỉ được cấu hình một trong ba model sau:
+
+- `GPT-5.6-sol`: model mặc định khi người dùng không yêu cầu model cụ thể.
+- `GPT-5.6-terra`: dùng khi người dùng yêu cầu model này hoặc một cách viết tương đương.
+- `GPT-5.6-luna`: dùng khi người dùng yêu cầu model này hoặc một cách viết tương đương.
+
+Nhận diện tên model không phân biệt chữ hoa/chữ thường. Chấp nhận dấu gạch ngang hoặc khoảng trắng giữa các phần của tên model, đồng thời bỏ khoảng trắng thừa trước khi so khớp. Ví dụ:
+
+- `GPT-5.6-luna`, `gpt-5.6-luna`, `GPT-5.6-LUNA` và `gpt 5.6 luna` đều phải được hiểu là `GPT-5.6-luna`.
+- `GPT-5.6-terra`, `gpt-5.6-terra` và `gpt 5.6 terra` đều phải được hiểu là `GPT-5.6-terra`.
+- `GPT-5.6-sol`, `gpt-5.6-sol` và `gpt 5.6 sol` đều phải được hiểu là `GPT-5.6-sol`.
+
+Sau khi nhận diện, luôn chuẩn hóa và ghi tên chính thức vào `config.toml`: `GPT-5.6-sol`, `GPT-5.6-terra` hoặc `GPT-5.6-luna`. Không ghi nguyên cách viết chữ thường hoặc cách viết có khoảng trắng của người dùng vào file.
+
+Khi người dùng yêu cầu `GPT-5.6-terra`, `GPT-5.6-luna` hoặc cách viết tương đương, cập nhật khóa `model` trong `config.toml` thành tên chính thức tương ứng. Nếu dùng bộ file mẫu đi kèm skill, copy file theo workflow rồi chỉ đổi khóa `model`, không thay đổi các cấu hình không liên quan.
+
+Nếu người dùng yêu cầu bất kỳ model nào ngoài ba model trên, không cập nhật cấu hình và không tự động thay thế bằng model gần giống. Hãy thông báo rằng hiện tại chỉ hỗ trợ `GPT-5.6-sol`, `GPT-5.6-terra` và `GPT-5.6-luna`, rồi yêu cầu họ chọn một trong ba model này.
+
 ## Khi Dùng Skill
 
 - Cài Codex Extension trong Antigravity trên Windows, Linux hoặc macOS để chạy qua ALT Gateway.
 - Đồng bộ cách cấu hình từ VPS `/root/.codex/config.toml` sang máy khác.
 - Sửa lỗi provider, model, endpoint, biến môi trường hoặc lỗi `401`/không kết nối.
 - Cấu hình Codex CLI và extension dùng chung user-level config.
+- Đổi model giữa `GPT-5.6-sol`, `GPT-5.6-terra` và `GPT-5.6-luna` theo yêu cầu của người dùng.
 
 ## Quy Tắc An Toàn
 
@@ -107,6 +128,8 @@ Sau khi chạy, chỉ xác nhận hai file đích tồn tại; không đọc ho�
 8. Nếu cấu hình dùng biến `ALT_KEY`, đặt API key thật bằng cách không làm lộ key và chỉ kiểm tra biến đã tồn tại, không in giá trị.
 9. Khi người dùng yêu cầu kiểm tra, test endpoint `/v1/models`, rồi restart hoàn toàn Antigravity/Codex Extension.
 10. Mở phiên Codex mới và xác nhận provider/model hoạt động.
+
+Khi đổi model, chuẩn hóa cách viết không phân biệt hoa/thường và chấp nhận dấu gạch ngang hoặc khoảng trắng như mô tả ở mục **Model Được Hỗ Trợ**. Chỉ ghi tên chính thức `GPT-5.6-sol`, `GPT-5.6-terra` hoặc `GPT-5.6-luna` vào khóa `model`. Nếu không thể chuẩn hóa yêu cầu thành một trong ba model này, thông báo danh sách model được hỗ trợ và dừng trước khi sửa cấu hình.
 
 ## Windows PowerShell
 
@@ -211,7 +234,8 @@ Lưu ý: `launchctl setenv` không phải cơ chế lưu secret bền vững qua
 Nếu file đã có nhiều cấu hình, không thay toàn bộ file bằng một heredoc. Hãy sửa TOML có chủ đích:
 
 - Đảm bảo `model_provider = "alt"`.
-- Đảm bảo `model = "GPT-5.6-sol"`.
+- Đảm bảo `model` là model người dùng đã chọn trong danh sách hỗ trợ; mặc định là `GPT-5.6-sol`.
+- Chuẩn hóa cách viết của người dùng về `GPT-5.6-sol`, `GPT-5.6-terra` hoặc `GPT-5.6-luna`; không ghi model khác, tên chữ thường hoặc tên có khoảng trắng vào config.
 - Đảm bảo `model_reasoning_effort = "medium"`, trừ khi người dùng yêu cầu mức khác.
 - Tạo hoặc cập nhật `[model_providers.alt]` với `name`, `base_url`, `env_key` như mẫu.
 - Giữ nguyên mọi bảng `[projects."..."]`, MCP và cấu hình khác.
@@ -262,7 +286,7 @@ Extension có thể chạy trong môi trường GUI khác terminal. Kiểm tra b
 ## Tiêu Chí Hoàn Tất
 
 - `config.toml` đúng đường dẫn của user chạy Antigravity.
-- Provider là `alt`, model là `GPT-5.6-sol`, endpoint là `https://codex.anhlaptrinh.vn/v1`.
+- Provider là `alt`, model là một trong `GPT-5.6-sol`, `GPT-5.6-terra` hoặc `GPT-5.6-luna`, endpoint là `https://codex.anhlaptrinh.vn/v1`.
 - `env_key = "ALT_KEY"`, không có API key thật trong file.
 - Biến môi trường tồn tại trong đúng GUI/login session.
 - `/v1/models` trả `200` khi gửi key hợp lệ.
@@ -273,6 +297,7 @@ Extension có thể chạy trong môi trường GUI khác terminal. Kiểm tra b
 ```text
 Đã cấu hình Codex Extension/Codex CLI dùng ALT Gateway trên <Windows|Linux|macOS>.
 File cấu hình: <đường dẫn config.toml>.
+Model: <GPT-5.6-sol|GPT-5.6-terra|GPT-5.6-luna>.
 API key được lưu qua biến ALT_KEY, không ghi vào config hoặc báo cáo.
 Kiểm tra gateway: HTTP <mã>.
 Đã yêu cầu restart hoàn toàn Antigravity và mở phiên Codex mới.
