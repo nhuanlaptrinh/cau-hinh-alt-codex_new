@@ -20,7 +20,7 @@ base_url = "https://codex.anhlaptrinh.vn/v1"
 env_key = "ALT_KEY"
 ```
 
-API key thật chỉ nằm trong biến môi trường `ALT_KEY`, không ghi trực tiếp vào `config.toml`.
+Trường hợp cấu hình Codex Extension: API key được cập nhật trực tiếp vào file `auth.json` (ví dụ `D:\01.VPS\skill_v03\cau-hinh-alt-codex_new\auth.json`) theo định dạng `{"OPENAI_API_KEY": "<API_KEY>"}` rồi copy trực tiếp vào thư mục `.codex` (`%USERPROFILE%\.codex` hoặc `$CODEX_HOME`), không cần tạo hay thiết lập biến môi trường hệ thống. API key không ghi trực tiếp vào `config.toml`.
 
 ## Model Được Hỗ Trợ
 
@@ -166,12 +166,19 @@ Không in `auth.json`, API key hoặc toàn bộ `openclaw.json` trong báo cáo
 
 Nếu có `CODEX_HOME`, ưu tiên thư mục đó. Extension và CLI phải chạy dưới cùng tài khoản người dùng để đọc cùng cấu hình và biến môi trường.
 
-## Sao Chép Bộ File Mẫu
+## Sao Chép Bộ File Mẫu & Xử Lý API Key Cho Extension
 
-Trên Windows, dùng cách này làm phương thức triển khai ưu tiên khi người dùng yêu cầu áp dụng cấu hình đi kèm skill: copy nguyên trạng đúng hai file sau, không tự tạo lại nội dung và không trộn với file mẫu khác:
-
-- `<skill-dir>\auth.json`
-- `<skill-dir>\config.toml`
+Trường hợp cấu hình Codex Extension, khi có API key người dùng cung cấp:
+1. Cập nhật API key vào file `auth.json` tại thư mục skill (`D:\01.VPS\skill_v03\cau-hinh-alt-codex_new\auth.json`):
+   ```json
+   {
+     "OPENAI_API_KEY": "<API_KEY>"
+   }
+   ```
+2. Copy nguyên trạng hai file từ thư mục skill sang thư mục `.codex` của tài khoản đích:
+   - `<skill-dir>\auth.json`
+   - `<skill-dir>\config.toml`
+3. Không cần khởi tạo hay cấu hình biến môi trường hệ thống cho Codex Extension.
 
 Copy hai file vào thư mục `.codex` của tài khoản Windows đích. Đích thường có dạng `C:\Users\<username>\.codex`; `C:\Users\nhuan\.codex` chỉ là một ví dụ. Không ghi cứng `nhuan`: với user hiện tại, lấy profile từ `$env:USERPROFILE`; với user khác, dùng đường dẫn profile chính xác do người dùng chỉ định. Nếu cấu hình user hiện tại và `CODEX_HOME` đã được đặt, ưu tiên `CODEX_HOME`.
 
@@ -221,7 +228,7 @@ Sau khi chạy, chỉ xác nhận hai file đích tồn tại; không đọc ho�
 5. Xác định đường dẫn user config và tạo thư mục `.codex` nếu chưa có.
 6. Backup từng file đích đã tồn tại với timestamp trước khi copy hoặc sửa.
 7. Chỉ khi người dùng yêu cầu chỉnh thủ công, cập nhật các khóa cần thiết trong `config.toml` và giữ nguyên cấu hình không liên quan.
-8. Nếu cấu hình dùng biến `ALT_KEY`, đặt API key thật bằng cách không làm lộ key và chỉ kiểm tra biến đã tồn tại, không in giá trị.
+8. Trường hợp cấu hình Codex Extension: khi có API key, cập nhật vào file `D:\01.VPS\skill_v03\cau-hinh-alt-codex_new\auth.json` rồi copy cả `auth.json` và `config.toml` sang thư mục `.codex`, không cần tạo biến môi trường hệ thống. Đảm bảo không làm lộ key trong chat/log.
 9. Khi người dùng yêu cầu kiểm tra, test endpoint `/v1/models`, rồi restart hoàn toàn Antigravity/Codex Extension.
 10. Mở phiên Codex mới và xác nhận provider/model hoạt động.
 
@@ -243,9 +250,19 @@ notepad $configPath
 
 Thêm hoặc cập nhật mẫu cấu hình ở phần **Mục Tiêu**, không xóa các bảng khác.
 
-### Lưu API key an toàn
+### Lưu API key cho Codex Extension (Qua file auth.json)
 
-Ưu tiên nhập ẩn trong PowerShell để key không xuất hiện trong lệnh:
+Trường hợp cấu hình Codex Extension, cập nhật API key vào file `auth.json` trong thư mục skill (`D:\01.VPS\skill_v03\cau-hinh-alt-codex_new\auth.json`):
+
+```json
+{
+  "OPENAI_API_KEY": "<API_KEY_CUA_BAN>"
+}
+```
+
+Sau đó copy file `auth.json` cùng `config.toml` vào thư mục `.codex` (ví dụ `%USERPROFILE%\.codex`). **Không cần tạo biến môi trường hệ thống.**
+
+If saved via environment variables (e.g. for CLI or shared scripts):
 
 ```powershell
 $secureKey = Read-Host "Nhap ALT API key" -AsSecureString
@@ -254,7 +271,7 @@ $plainKey = [System.Net.NetworkCredential]::new("", $secureKey).Password
 Remove-Variable plainKey, secureKey
 ```
 
-Đóng hoàn toàn Antigravity rồi mở lại vì process đang chạy không tự nhận User Environment mới.
+Đóng hoàn toàn Antigravity rồi mở lại nếu dùng phương pháp biến môi trường.
 
 ### Kiểm tra không lộ key
 
@@ -381,12 +398,11 @@ Extension có thể chạy trong môi trường GUI khác terminal. Kiểm tra b
 
 ## Tiêu Chí Hoàn Tất
 
-- `config.toml` đúng đường dẫn của user chạy Antigravity.
-- Provider là `alt`, model là một trong `GPT-5.6-sol`, `GPT-5.6-terra` hoặc `GPT-5.6-luna`, endpoint là `https://codex.anhlaptrinh.vn/v1`.
-- `env_key = "ALT_KEY"`, không có API key thật trong file.
-- Biến môi trường tồn tại trong đúng GUI/login session.
-- `/v1/models` trả `200` khi gửi key hợp lệ.
-- Antigravity đã restart và phiên Codex mới hoạt động.
+- `config.toml` và `auth.json` được copy đúng vào thư mục `.codex` của user chạy Antigravity (`%USERPROFILE%\.codex` hoặc `$CODEX_HOME`).
+- `auth.json` chứa `OPENAI_API_KEY` hợp lệ, không cần tạo biến môi trường hệ thống khi cấu hình extension.
+- Provider trong `config.toml` chỉ tới `https://codex.anhlaptrinh.vn/v1`, model là một trong `GPT-5.6-sol`, `GPT-5.6-terra` hoặc `GPT-5.6-luna`.
+- Không có API key thật xuất hiện trong file log hay chat response.
+- Antigravity/Codex Extension đã restart và phiên Codex mới hoạt động.
 
 ## Mẫu Báo Cáo
 
