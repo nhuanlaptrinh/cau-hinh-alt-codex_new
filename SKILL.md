@@ -1,6 +1,6 @@
 ---
 name: cau-hinh-alt-codex
-description: Cài đặt, sửa hoặc đổi đồng bộ model Codex Extension/Codex CLI và OpenClaw qua ALT/9Router trên Windows, Linux, macOS hoặc VPS. Use khi cần chọn GPT-5.6-sol/GPT-5.6-terra/GPT-5.6-luna, cập nhật /root/.codex/config.toml, đổi model mặc định hoặc model ghim theo agent trong OpenClaw, kiểm tra /v1/models, backup config, hoặc xử lý lỗi provider/model mà không làm lộ API key.
+description: Cài đặt, sửa hoặc đổi đồng bộ model Codex Extension/Codex CLI và OpenClaw qua ALT/9Router trên Windows, Linux, macOS hoặc VPS. Use khi cần chọn GPT-5.6-sol/GPT-5.6-terra/GPT-5.6-luna, cập nhật user config của Codex, đổi model mặc định hoặc model ghim theo agent trong OpenClaw, kiểm tra /v1/models, backup config, hoặc xử lý lỗi provider/model mà không làm lộ API key.
 ---
 
 # Cấu Hình Codex Qua ALT Gateway Đa Nền Tảng
@@ -21,6 +21,16 @@ env_key = "ALT_KEY"
 ```
 
 Trường hợp cấu hình Codex Extension: API key được cập nhật trực tiếp vào file `auth.json` (hai file `auth.json` và `config.toml` luôn nằm cùng folder với `SKILL.md`) theo định dạng `{"OPENAI_API_KEY": "<API_KEY>"}` rồi copy trực tiếp vào thư mục `.codex` (`%USERPROFILE%\.codex` hoặc `$CODEX_HOME`), không cần tạo hay thiết lập biến môi trường hệ thống. API key không ghi trực tiếp vào `config.toml`.
+
+## Quy Tắc Đường Dẫn Mềm
+
+- Không giả định VPS chạy bằng `root`, không ghi cứng tên user, ổ đĩa, thư mục cài skill hoặc thư mục backup.
+- Luôn ưu tiên biến môi trường/tùy chọn do người dùng cung cấp, sau đó mới dùng thư mục home của user đang chạy.
+- Thư mục skill là thư mục thực tế chứa `SKILL.md`; dùng `<skill-dir>`, biến `ALT_CODEX_SKILL_DIR` hoặc working directory đã được xác minh thay vì chép một đường dẫn máy cụ thể.
+- Codex config mặc định: `${CODEX_HOME:-$HOME/.codex}/config.toml` trên shell; trên PowerShell dùng `$env:CODEX_HOME` nếu có, nếu không dùng `Join-Path $env:USERPROFILE ".codex"`.
+- OpenClaw config mặc định: `${OPENCLAW_CONFIG_PATH:-$HOME/.openclaw/openclaw.json}`. Khi layout khác, lấy đường dẫn thực tế từ người dùng hoặc config/runtime hiện tại.
+- Backup mặc định của script: `${ALT_CODEX_BACKUP_DIR:-${XDG_STATE_HOME:-$HOME/.local/state}/cau-hinh-alt-codex/backups}`; có thể ghi đè bằng `ALT_CODEX_BACKUP_DIR` hoặc `--backup-dir`.
+- Trước khi đọc, copy hoặc sửa file, luôn hiển thị/xác minh đường dẫn đã resolve và dừng nếu file nằm ngoài tài khoản hoặc VPS mục tiêu.
 
 ## Model Được Hỗ Trợ
 
@@ -49,7 +59,33 @@ Nếu người dùng yêu cầu bất kỳ model nào ngoài ba model trên, kh�
 - `GPT-5.6-luna`: ưu tiên tốc độ và chi phí cho tác vụ nhẹ.
 - Codex ghi model dạng `GPT-5.6-*`.
 - OpenClaw dùng provider/model dạng `<provider-hien-tai>/GPT-5.6-*`. Prefix provider có thể là `9r`, `9k`, `8r`, `8k` hoặc tên khác; phải đọc cấu hình hiện tại, không được hardcode.
-- Trước khi áp dụng, xác minh model xuất hiện trong endpoint `/v1/models` của gateway đang dùng.
+- Khi cài mới, sửa provider hoặc đồng bộ VPS/OpenClaw, xác minh model xuất hiện trong endpoint `/v1/models` của gateway đang dùng. Riêng yêu cầu chỉ đổi model trên máy tính thì không test gateway trừ khi người dùng yêu cầu.
+
+## Chỉ Đổi Model Trên Máy Tính
+
+Áp dụng workflow này khi người dùng chỉ yêu cầu đổi model Codex trên máy tính, ví dụ “đổi sang GPT-5.6-terra”, mà không yêu cầu đồng bộ VPS, đổi OpenClaw, copy bộ file mẫu, đổi API key hoặc kiểm tra gateway.
+
+1. Chuẩn hóa model theo mục **Model Được Hỗ Trợ**. Nếu model không nằm trong ba model được hỗ trợ, dừng trước khi sửa file.
+2. Resolve `config.toml` của user hiện tại bằng `$CODEX_HOME` hoặc thư mục `.codex` trong home; không dùng file `config.toml` nằm cạnh `SKILL.md` nếu người dùng không yêu cầu copy bộ file mẫu.
+3. Backup `config.toml` hiện tại với timestamp trước khi ghi nếu file đã tồn tại.
+4. Chỉ cập nhật khóa top-level `model` thành tên chính thức `GPT-5.6-sol`, `GPT-5.6-terra` hoặc `GPT-5.6-luna`; giữ nguyên `model_provider`, `model_reasoning_effort`, `[model_providers.*]`, `[projects.*]`, MCP và mọi cấu hình khác.
+5. Không đọc/sửa `auth.json`, không copy file, không sửa OpenClaw, không restart gateway/Antigravity và không test `/v1/models` trừ khi người dùng yêu cầu riêng.
+6. Sau khi ghi, chỉ xác nhận `config.toml` tồn tại và khóa `model` đã nhận đúng giá trị; báo cáo đường dẫn thực tế và model mới, không in secret.
+
+Ví dụ resolve và sửa trực tiếp trên Linux/macOS/VPS:
+
+```bash
+codex_home="${CODEX_HOME:-$HOME/.codex}"
+config_path="$codex_home/config.toml"
+selected_model="GPT-5.6-terra"
+stamp=$(date +%Y%m%d-%H%M%S)
+
+test -f "$config_path" || { echo "Không tìm thấy: $config_path" >&2; exit 1; }
+cp -p "$config_path" "$config_path.bak-$stamp"
+MODEL_VALUE="$selected_model" perl -0pi -e 's/^model\s*=\s*"[^"]*"/model = "$ENV{MODEL_VALUE}"/m or die "Top-level model key not found\n"' "$config_path"
+```
+
+Trên Windows PowerShell, resolve `$codexHome` từ `$env:CODEX_HOME` hoặc `$env:USERPROFILE`, tạo backup rồi sửa duy nhất dòng top-level `model` trong `$configPath`. Không thay `$sourceDir`, không copy `auth.json` và không dùng đường dẫn máy cụ thể.
 
 ## Đổi Đồng Bộ Trên VPS
 
@@ -60,10 +96,11 @@ bash scripts/set_alt_model.sh --model GPT-5.6-sol --dry-run
 bash scripts/set_alt_model.sh --model GPT-5.6-sol --all-agents
 ```
 
-Đường dẫn đầy đủ trên VPS:
+Nếu gọi từ thư mục khác, truyền thư mục skill bằng biến thay vì ghi cứng đường dẫn cài đặt:
 
 ```bash
-bash /root/.agents/skills/cau-hinh-alt-codex/scripts/set_alt_model.sh \
+export ALT_CODEX_SKILL_DIR="<skill-dir>"
+bash "$ALT_CODEX_SKILL_DIR/scripts/set_alt_model.sh" \
   --model GPT-5.6-sol \
   --all-agents
 ```
@@ -71,7 +108,7 @@ bash /root/.agents/skills/cau-hinh-alt-codex/scripts/set_alt_model.sh \
 Script thực hiện:
 
 1. Chỉ chấp nhận `GPT-5.6-sol`, `GPT-5.6-terra`, `GPT-5.6-luna` và cách viết tương đương.
-2. Backup file vào `/root/_Backups/cau-hinh-alt-codex/` trước khi ghi.
+2. Backup file vào `${ALT_CODEX_BACKUP_DIR:-${XDG_STATE_HOME:-$HOME/.local/state}/cau-hinh-alt-codex/backups}` trước khi ghi; cho phép đổi bằng `ALT_CODEX_BACKUP_DIR` hoặc `--backup-dir`.
 3. Chỉ đổi khóa `model` cấp cao trong Codex config; giữ nguyên provider, projects, MCP và cấu hình khác.
 4. Tự phát hiện provider từ `agents.defaults.model.primary`, xác nhận provider đó tồn tại trong `models.providers`, rồi đăng ký đủ ba model vào đúng provider.
 5. Đổi `agents.defaults.model.primary` và thêm model vào `agents.defaults.models`.
@@ -83,8 +120,9 @@ Mặc định script dùng:
 
 - Codex: `${CODEX_HOME:-$HOME/.codex}/config.toml`
 - OpenClaw: `${OPENCLAW_CONFIG_PATH:-$HOME/.openclaw/openclaw.json}`
+- Backup: `${ALT_CODEX_BACKUP_DIR:-${XDG_STATE_HOME:-$HOME/.local/state}/cau-hinh-alt-codex/backups}`
 
-Có thể chỉ định đường dẫn khác bằng `--codex-config` và `--openclaw-config`.
+Có thể chỉ định đường dẫn khác bằng `--codex-config`, `--openclaw-config`, `--backup-dir` hoặc các biến môi trường tương ứng ở trên.
 
 Khi đổi model OpenClaw, gateway sẽ restart tự động sau bước validate. Chỉ dùng tùy chọn dưới đây khi cần chủ động trì hoãn restart:
 
@@ -128,7 +166,8 @@ bash scripts/set_alt_model.sh --model GPT-5.6-luna --openclaw-only --all-agents
 ### Kiểm tra sau thay đổi
 
 ```bash
-rg -n '^(model_provider|model|model_reasoning_effort)\s*=' /root/.codex/config.toml
+codex_config="${CODEX_HOME:-$HOME/.codex}/config.toml"
+rg -n '^(model_provider|model|model_reasoning_effort)\s*=' "$codex_config"
 openclaw config validate
 openclaw models status
 ```
@@ -138,10 +177,11 @@ Không in `auth.json`, API key hoặc toàn bộ `openclaw.json` trong báo cáo
 ## Khi Dùng Skill
 
 - Cài Codex Extension trong Antigravity trên Windows, Linux hoặc macOS để chạy qua ALT Gateway.
-- Đồng bộ cách cấu hình từ VPS `/root/.codex/config.toml` sang máy khác.
+- Đồng bộ cách cấu hình từ user config Codex trên VPS sang máy khác.
 - Sửa lỗi provider, model, endpoint, biến môi trường hoặc lỗi `401`/không kết nối.
 - Cấu hình Codex CLI và extension dùng chung user-level config.
 - Đổi model giữa `GPT-5.6-sol`, `GPT-5.6-terra` và `GPT-5.6-luna` theo yêu cầu của người dùng.
+- Khi người dùng chỉ nói đổi model trên máy tính, sửa trực tiếp khóa `model` trong user `config.toml` theo mục **Chỉ Đổi Model Trên Máy Tính**.
 - Đổi cùng một model cho Codex và OpenClaw trên VPS, bao gồm các agent đang ghim model cũ khi người dùng yêu cầu áp dụng toàn bộ.
 
 ## Quy Tắc An Toàn
@@ -157,14 +197,12 @@ Không in `auth.json`, API key hoặc toàn bộ `openclaw.json` trong báo cáo
 
 ## Vị Trí Cấu Hình
 
-| Hệ điều hành | File user config |
+| Môi trường | Cách resolve user config |
 |---|---|
-| Windows | `%USERPROFILE%\.codex\config.toml` |
-| Linux | `${CODEX_HOME:-$HOME/.codex}/config.toml` |
-| macOS | `${CODEX_HOME:-$HOME/.codex}/config.toml` |
-| VPS chạy root | `/root/.codex/config.toml` |
+| Windows PowerShell | Dùng `$env:CODEX_HOME` nếu có; nếu không, ghép `$env:USERPROFILE`, `.codex` và `config.toml` bằng `Join-Path` |
+| Linux/macOS/VPS | `${CODEX_HOME:-$HOME/.codex}/config.toml` |
 
-Nếu có `CODEX_HOME`, ưu tiên thư mục đó. Extension và CLI phải chạy dưới cùng tài khoản người dùng để đọc cùng cấu hình và biến môi trường.
+VPS chạy user nào thì dùng home của user đó; không thay `$HOME` bằng một home directory cố định. Nếu có `CODEX_HOME`, ưu tiên thư mục đó. Extension và CLI phải chạy dưới cùng tài khoản người dùng để đọc cùng cấu hình và biến môi trường.
 
 ## Sao Chép Bộ File Mẫu & Xử Lý API Key Cho Extension
 
@@ -183,7 +221,7 @@ Trường hợp cấu hình Codex Extension, khi có API key người dùng cung
    - `<skill-dir>\config.toml`
 3. Không cần khởi tạo hay cấu hình biến môi trường hệ thống cho Codex Extension.
 
-Copy hai file vào thư mục `.codex` của tài khoản Windows đích. Đích thường có dạng `C:\Users\<username>\.codex`; `C:\Users\nhuan\.codex` chỉ là một ví dụ. Không ghi cứng `nhuan`: với user hiện tại, lấy profile từ `$env:USERPROFILE`; với user khác, dùng đường dẫn profile chính xác do người dùng chỉ định. Nếu cấu hình user hiện tại và `CODEX_HOME` đã được đặt, ưu tiên `CODEX_HOME`.
+Copy hai file vào thư mục `.codex` của tài khoản Windows đích. Với user hiện tại, lấy profile từ `$env:USERPROFILE`; với user khác, dùng profile path do hệ điều hành trả về hoặc do người dùng chỉ định. Không tự ghép ổ đĩa và tên user. Nếu cấu hình user hiện tại và `CODEX_HOME` đã được đặt, ưu tiên `CODEX_HOME`.
 
 Phân biệt rõ yêu cầu cập nhật skill và yêu cầu áp dụng cấu hình:
 
@@ -193,10 +231,17 @@ Phân biệt rõ yêu cầu cập nhật skill và yêu cầu áp dụng cấu h
 
 ### Windows PowerShell
 
-Đặt `$sourceDir` thành thư mục chứa `auth.json`, `config.toml` và `SKILL.md`. Mặc định `$targetProfile` là profile của user đang chạy; thay biến này bằng đường dẫn profile đầy đủ, chẳng hạn `C:\Users\ten-nguoi-dung`, khi người dùng chọn tài khoản khác.
+Đặt biến `ALT_CODEX_SKILL_DIR` thành thư mục chứa `auth.json`, `config.toml` và `SKILL.md`, hoặc chạy PowerShell ngay trong thư mục skill. Mặc định `$targetProfile` là profile của user đang chạy; khi chọn tài khoản khác, lấy profile path thực tế từ hệ điều hành hoặc từ người dùng.
 
 ```powershell
-$sourceDir = "D:\01.VPS\skill_v03\cau-hinh-alt-codex_new"
+$sourceDir = if ($env:ALT_CODEX_SKILL_DIR) {
+    (Resolve-Path -LiteralPath $env:ALT_CODEX_SKILL_DIR).Path
+} else {
+    (Get-Location).Path
+}
+if (-not (Test-Path -LiteralPath (Join-Path $sourceDir "SKILL.md") -PathType Leaf)) {
+    throw "Không xác định được thư mục skill. Hãy đặt ALT_CODEX_SKILL_DIR hoặc chạy từ thư mục chứa SKILL.md."
+}
 $targetProfile = $env:USERPROFILE
 $codexHome = if (($targetProfile -eq $env:USERPROFILE) -and $env:CODEX_HOME) {
     $env:CODEX_HOME
@@ -220,11 +265,11 @@ foreach ($fileName in $fileNames) {
 }
 ```
 
-Sau khi chạy, chỉ xác nhận hai file đích tồn tại; không đọc hoặc in giá trị trong `auth.json`. Báo cáo đường dẫn đích thực tế từ `$codexHome`, không giả định tên user là `nhuan`.
+Sau khi chạy, chỉ xác nhận hai file đích tồn tại; không đọc hoặc in giá trị trong `auth.json`. Báo cáo đường dẫn đích thực tế từ `$codexHome`, không giả định tên user hoặc ổ đĩa.
 
 ## Workflow Chuẩn
 
-1. Kiểm tra phạm vi yêu cầu. Nếu người dùng chỉ yêu cầu cập nhật skill, sửa và xác thực skill rồi dừng, không áp dụng cấu hình.
+1. Kiểm tra phạm vi yêu cầu. Nếu người dùng chỉ yêu cầu cập nhật skill, sửa và xác thực skill rồi dừng, không áp dụng cấu hình. Nếu họ chỉ yêu cầu đổi model trên máy tính, thực hiện mục **Chỉ Đổi Model Trên Máy Tính** rồi dừng, không chạy workflow copy/đồng bộ phía dưới.
 2. Khi được yêu cầu áp dụng, xác định hệ điều hành, tài khoản đích, profile đích và việc user hiện tại có dùng `CODEX_HOME` hay không.
 3. Kiểm tra Codex Extension/Codex CLI đã được cài. Không tự cài extension nếu chưa biết đúng extension ID hoặc nguồn cài đặt.
 4. Nếu người dùng yêu cầu dùng bộ file đi kèm skill, làm theo mục **Sao Chép Bộ File Mẫu** và copy đúng `auth.json`, `config.toml`.
@@ -463,15 +508,19 @@ Không chép nguyên mẫu trên vào config nếu provider hiện tại không 
 1. Xác định binding Telegram tới agent nào:
 
 ```bash
-jq '.bindings, .agents.list' /root/.openclaw/openclaw.json
+openclaw_home="${OPENCLAW_HOME:-$HOME/.openclaw}"
+openclaw_config="${OPENCLAW_CONFIG_PATH:-$openclaw_home/openclaw.json}"
+openclaw_agents_dir="${OPENCLAW_AGENTS_DIR:-$openclaw_home/agents}"
+jq '.bindings, .agents.list' "$openclaw_config"
 ```
 
 2. Kiểm tra model mặc định và allowlist của đúng agent; không in `apiKey`, `auth.json`, cookie hoặc credential:
 
 ```bash
 openclaw models status --agent <agent-id> --json
+agent_models="$openclaw_agents_dir/<agent-id>/agent/models.json"
 jq '{providers:(.providers|to_entries|map({id:.key,models:(.value.models|map(.id))}))}' \
-  /root/.openclaw/agents/<agent-id>/agent/models.json
+  "$agent_models"
 ```
 
 3. Kiểm tra session Telegram có đang ghim model cũ không. Nếu session entry có `model: "codex"` hoặc model cũ, gửi trong đúng chat:

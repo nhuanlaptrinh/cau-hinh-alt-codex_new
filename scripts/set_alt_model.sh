@@ -3,9 +3,10 @@ set -euo pipefail
 
 MODEL=""
 CODEX_CONFIG="${CODEX_HOME:-$HOME/.codex}/config.toml"
-OPENCLAW_CONFIG="${OPENCLAW_CONFIG_PATH:-$HOME/.openclaw/openclaw.json}"
+ACTIVE_OPENCLAW_CONFIG="${OPENCLAW_CONFIG_PATH:-$HOME/.openclaw/openclaw.json}"
+OPENCLAW_CONFIG="$ACTIVE_OPENCLAW_CONFIG"
 OPENCLAW_PROVIDER=""
-BACKUP_DIR="/root/_Backups/cau-hinh-alt-codex"
+BACKUP_DIR="${ALT_CODEX_BACKUP_DIR:-${XDG_STATE_HOME:-$HOME/.local/state}/cau-hinh-alt-codex/backups}"
 DRY_RUN=0
 ALL_AGENTS=0
 UPDATE_CODEX=1
@@ -24,7 +25,7 @@ Options:
   --openclaw-only           Update only OpenClaw config
   --codex-config PATH       Override Codex config path
   --openclaw-config PATH    Override OpenClaw config path
-  --openclaw-provider ID   Override detected OpenClaw provider id
+  --openclaw-provider ID    Override detected OpenClaw provider id
   --backup-dir PATH         Override backup directory
   --no-restart-gateway      Do not restart OpenClaw gateway after change
   --dry-run                 Show planned changes without writing
@@ -132,6 +133,7 @@ if [[ $UPDATE_OPENCLAW -eq 1 ]]; then
 fi
 
 echo "Selected model: $MODEL"
+echo "Backup directory: $BACKUP_DIR"
 [[ $UPDATE_CODEX -eq 1 ]] && echo "Codex config: $CODEX_CONFIG"
 if [[ $UPDATE_OPENCLAW -eq 1 ]]; then
   echo "OpenClaw config: $OPENCLAW_CONFIG"
@@ -198,7 +200,7 @@ if [[ $UPDATE_OPENCLAW -eq 1 ]]; then
   mv "$TEMP_FILE" "$OPENCLAW_CONFIG"
   trap - EXIT
 
-  if [[ "$OPENCLAW_CONFIG" == "$HOME/.openclaw/openclaw.json" ]] && command -v openclaw >/dev/null; then
+  if [[ "$OPENCLAW_CONFIG" == "$ACTIVE_OPENCLAW_CONFIG" ]] && command -v openclaw >/dev/null; then
     if ! openclaw config validate >/dev/null; then
       cp -p "$OPENCLAW_BACKUP" "$OPENCLAW_CONFIG"
       echo "OpenClaw validation failed; restored backup." >&2
