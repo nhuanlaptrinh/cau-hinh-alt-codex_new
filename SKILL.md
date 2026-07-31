@@ -1,6 +1,6 @@
 ---
 name: cau-hinh-alt-codex
-description: Cài đặt hoặc sửa cấu hình Codex Extension trong Antigravity và Codex CLI để dùng chung ALT Gateway trên Windows, Linux, macOS hoặc VPS. Use khi người dùng muốn mang cấu hình tương tự /root/.codex/config.toml sang máy khác, copy bộ auth.json và config.toml vào thư mục .codex của user, cấu hình model_provider/model_providers trong config.toml, đặt ALT_KEY an toàn, chọn một trong ba model GPT-5.6-sol/GPT-5.6-terra/GPT-5.6-luna, kiểm tra /v1/models, hoặc xử lý lỗi Codex không nhận provider ALT.
+description: Cài đặt, sửa hoặc đổi đồng bộ model Codex Extension/Codex CLI và OpenClaw qua ALT/9Router trên Windows, Linux, macOS hoặc VPS. Use khi cần chọn GPT-5.6-sol/GPT-5.6-terra/GPT-5.6-luna, cập nhật /root/.codex/config.toml, đổi model mặc định hoặc model ghim theo agent trong OpenClaw, kiểm tra /v1/models, backup config, hoặc xử lý lỗi provider/model mà không làm lộ API key.
 ---
 
 # Cấu Hình Codex Qua ALT Gateway Đa Nền Tảng
@@ -42,6 +42,87 @@ Khi người dùng yêu cầu `GPT-5.6-terra`, `GPT-5.6-luna` hoặc cách viế
 
 Nếu người dùng yêu cầu bất kỳ model nào ngoài ba model trên, không cập nhật cấu hình và không tự động thay thế bằng model gần giống. Hãy thông báo rằng hiện tại chỉ hỗ trợ `GPT-5.6-sol`, `GPT-5.6-terra` và `GPT-5.6-luna`, rồi yêu cầu họ chọn một trong ba model này.
 
+## Chính Sách Chọn Model
+
+- `GPT-5.6-sol`: mặc định cân bằng cho coding/agent phức tạp; dùng khi người dùng không chỉ định model.
+- `GPT-5.6-terra`: lựa chọn cân bằng tốc độ và chất lượng cho công việc hằng ngày.
+- `GPT-5.6-luna`: ưu tiên tốc độ và chi phí cho tác vụ nhẹ.
+- Codex ghi model dạng `GPT-5.6-*`.
+- OpenClaw dùng provider/model dạng `<provider-hien-tai>/GPT-5.6-*`. Prefix provider có thể là `9r`, `9k`, `8r`, `8k` hoặc tên khác; phải đọc cấu hình hiện tại, không được hardcode.
+- Trước khi áp dụng, xác minh model xuất hiện trong endpoint `/v1/models` của gateway đang dùng.
+
+## Đổi Đồng Bộ Trên VPS
+
+Script chuẩn đi kèm skill:
+
+```bash
+bash scripts/set_alt_model.sh --model GPT-5.6-sol --dry-run
+bash scripts/set_alt_model.sh --model GPT-5.6-sol --all-agents
+```
+
+Đường dẫn đầy đủ trên VPS:
+
+```bash
+bash /root/.agents/skills/cau-hinh-alt-codex/scripts/set_alt_model.sh \
+  --model GPT-5.6-sol \
+  --all-agents
+```
+
+Script thực hiện:
+
+1. Chỉ chấp nhận `GPT-5.6-sol`, `GPT-5.6-terra`, `GPT-5.6-luna` và cách viết tương đương.
+2. Backup file vào `/root/_Backups/cau-hinh-alt-codex/` trước khi ghi.
+3. Chỉ đổi khóa `model` cấp cao trong Codex config; giữ nguyên provider, projects, MCP và cấu hình khác.
+4. Tự phát hiện provider từ `agents.defaults.model.primary`, xác nhận provider đó tồn tại trong `models.providers`, rồi đăng ký đủ ba model vào đúng provider.
+5. Đổi `agents.defaults.model.primary` và thêm model vào `agents.defaults.models`.
+6. Khi có `--all-agents`, chỉ thay các agent đang ghim `codex` hoặc một trong ba model được quản lý thuộc đúng provider vừa phát hiện; không đụng agent dùng provider khác.
+7. Validate JSON/OpenClaw sau khi ghi; nếu validation lỗi thì khôi phục backup vừa tạo.
+
+Mặc định script dùng:
+
+- Codex: `${CODEX_HOME:-$HOME/.codex}/config.toml`
+- OpenClaw: `${OPENCLAW_CONFIG_PATH:-$HOME/.openclaw/openclaw.json}`
+
+Có thể chỉ định đường dẫn khác bằng `--codex-config` và `--openclaw-config`.
+
+Script ưu tiên lấy prefix từ model mặc định hiện tại. Ví dụ:
+
+- `9r/codex` sẽ đổi thành `9r/GPT-5.6-sol`.
+- `9k/codex` sẽ đổi thành `9k/GPT-5.6-sol`.
+- `8r/GPT-5.6-luna` sẽ đổi thành `8r/GPT-5.6-terra` khi chọn terra.
+- `8k/codex` sẽ đổi thành `8k/GPT-5.6-luna` khi chọn luna.
+
+Nếu cấu hình không có model mặc định hợp lệ hoặc có nhiều provider không thể xác định duy nhất, script phải dừng và yêu cầu chỉ rõ provider, không được tự đoán:
+
+```bash
+bash scripts/set_alt_model.sh \
+  --model GPT-5.6-sol \
+  --openclaw-provider 9k \
+  --all-agents
+```
+
+### Chỉ đổi Codex
+
+```bash
+bash scripts/set_alt_model.sh --model GPT-5.6-terra --codex-only
+```
+
+### Chỉ đổi OpenClaw
+
+```bash
+bash scripts/set_alt_model.sh --model GPT-5.6-luna --openclaw-only --all-agents
+```
+
+### Kiểm tra sau thay đổi
+
+```bash
+rg -n '^(model_provider|model|model_reasoning_effort)\s*=' /root/.codex/config.toml
+openclaw config validate
+openclaw models status
+```
+
+Không in `auth.json`, API key hoặc toàn bộ `openclaw.json` trong báo cáo.
+
 ## Khi Dùng Skill
 
 - Cài Codex Extension trong Antigravity trên Windows, Linux hoặc macOS để chạy qua ALT Gateway.
@@ -49,6 +130,7 @@ Nếu người dùng yêu cầu bất kỳ model nào ngoài ba model trên, kh�
 - Sửa lỗi provider, model, endpoint, biến môi trường hoặc lỗi `401`/không kết nối.
 - Cấu hình Codex CLI và extension dùng chung user-level config.
 - Đổi model giữa `GPT-5.6-sol`, `GPT-5.6-terra` và `GPT-5.6-luna` theo yêu cầu của người dùng.
+- Đổi cùng một model cho Codex và OpenClaw trên VPS, bao gồm các agent đang ghim model cũ khi người dùng yêu cầu áp dụng toàn bộ.
 
 ## Quy Tắc An Toàn
 
@@ -56,6 +138,8 @@ Nếu người dùng yêu cầu bất kỳ model nào ngoài ba model trên, kh�
 - Không ghi API key thật vào skill, tài liệu, repo, shell history hoặc câu trả lời cuối.
 - `env_key` phải là tên biến môi trường `ALT_KEY`, tuyệt đối không phải API key thật.
 - Luôn backup `config.toml` trước khi sửa nếu file đã tồn tại.
+- Luôn backup `openclaw.json` trước khi sửa và chạy `openclaw config validate` sau thay đổi.
+- Không đổi `imageModel`, fallback hoặc provider khác nếu người dùng chỉ yêu cầu đổi model chat mặc định.
 - Không ghi đè các phần cấu hình khác như `[projects]`, MCP, sandbox hoặc trust nếu task không yêu cầu.
 - Không yêu cầu người dùng gửi API key vào chat. Cho người dùng tự nhập trực tiếp trên máy.
 

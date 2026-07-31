@@ -1,4 +1,4 @@
 interface:
-  display_name: "Cấu hình ALT Provider cho Codex"
-  short_description: "Cấu hình Codex qua ALT Gateway trên Windows, Linux và macOS"
-  default_prompt: "Hãy cấu hình Codex Extension trong Antigravity hoặc Codex CLI trên máy này dùng ALT Gateway, giữ an toàn API key và kiểm tra kết nối."
+  display_name: "Đổi model ALT cho Codex và OpenClaw"
+  short_description: "Đổi an toàn GPT-5.6 sol, terra hoặc luna trên Codex/OpenClaw"
+  default_prompt: "Hãy cấu hình hoặc đổi đồng bộ model GPT-5.6-sol, GPT-5.6-terra hoặc GPT-5.6-luna cho Codex và OpenClaw, backup trước khi sửa, không làm lộ API key và kiểm tra cấu hình sau thay đổi."
