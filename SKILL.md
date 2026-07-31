@@ -77,6 +77,7 @@ Script thực hiện:
 5. Đổi `agents.defaults.model.primary` và thêm model vào `agents.defaults.models`.
 6. Khi có `--all-agents`, chỉ thay các agent đang ghim `codex` hoặc một trong ba model được quản lý thuộc đúng provider vừa phát hiện; không đụng agent dùng provider khác.
 7. Validate JSON/OpenClaw sau khi ghi; nếu validation lỗi thì khôi phục backup vừa tạo.
+8. Tự động chạy `openclaw gateway restart` và kiểm tra `openclaw gateway status` sau khi sửa config OpenClaw đang hoạt động.
 
 Mặc định script dùng:
 
@@ -84,6 +85,17 @@ Mặc định script dùng:
 - OpenClaw: `${OPENCLAW_CONFIG_PATH:-$HOME/.openclaw/openclaw.json}`
 
 Có thể chỉ định đường dẫn khác bằng `--codex-config` và `--openclaw-config`.
+
+Khi đổi model OpenClaw, gateway sẽ restart tự động sau bước validate. Chỉ dùng tùy chọn dưới đây khi cần chủ động trì hoãn restart:
+
+```bash
+bash scripts/set_alt_model.sh \
+  --model GPT-5.6-terra \
+  --openclaw-only \
+  --no-restart-gateway
+```
+
+Với `--dry-run`, script chỉ hiển thị rằng gateway sẽ restart và không thực hiện restart.
 
 Script ưu tiên lấy prefix từ model mặc định hiện tại. Ví dụ:
 
@@ -459,10 +471,10 @@ openclaw agent --agent <agent-id> \
   --message '/model default' --json
 ```
 
-### Hot Reload Và Restart Gateway
+### Validate Và Restart Gateway
 
-- Sau khi sửa config, chạy `openclaw config validate` và kiểm tra log `config hot reload applied`.
-- Hot reload có thể cập nhật config nhưng session Telegram đang chạy vẫn giữ runtime/model cũ. Nếu `/model status` hoặc log request vẫn dùng model/runtime cũ, backup đã tạo và restart Gateway:
+- Sau mỗi lần đổi model trong config OpenClaw đang hoạt động, luôn chạy validate rồi restart Gateway; không chỉ dựa vào hot reload.
+- Script `set_alt_model.sh` thực hiện restart tự động. Nếu thao tác thủ công, chạy đủ ba lệnh:
 
 ```bash
 openclaw config validate
@@ -470,7 +482,7 @@ openclaw gateway restart
 openclaw gateway status
 ```
 
-- Sau restart, tạo session Telegram mới hoặc gửi `/model default`, rồi kiểm tra lại `/model status`.
+- Sau restart, tạo session Telegram mới hoặc gửi `/model default`, rồi kiểm tra lại `/model status` và log request.
 - Không báo hoàn tất chỉ dựa trên file JSON. Tiêu chí đạt là log request mới nhất dùng đúng `provider=... model=<model-yêu-cầu>` và Telegram không còn tự nhận model cũ.
 
 ### Reasoning Mặc Định

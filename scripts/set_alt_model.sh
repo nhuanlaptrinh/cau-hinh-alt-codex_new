@@ -10,6 +10,7 @@ DRY_RUN=0
 ALL_AGENTS=0
 UPDATE_CODEX=1
 UPDATE_OPENCLAW=1
+RESTART_GATEWAY=1
 
 usage() {
   cat <<'EOF'
@@ -25,6 +26,7 @@ Options:
   --openclaw-config PATH    Override OpenClaw config path
   --openclaw-provider ID   Override detected OpenClaw provider id
   --backup-dir PATH         Override backup directory
+  --no-restart-gateway      Do not restart OpenClaw gateway after change
   --dry-run                 Show planned changes without writing
   -h, --help                Show this help
 EOF
@@ -51,6 +53,7 @@ while [[ $# -gt 0 ]]; do
     --openclaw-config) OPENCLAW_CONFIG=${2:-}; shift 2 ;;
     --openclaw-provider) OPENCLAW_PROVIDER=${2:-}; shift 2 ;;
     --backup-dir) BACKUP_DIR=${2:-}; shift 2 ;;
+    --no-restart-gateway) RESTART_GATEWAY=0; shift ;;
     --dry-run) DRY_RUN=1; shift ;;
     -h|--help) usage; exit 0 ;;
     *) echo "Unknown argument: $1" >&2; usage >&2; exit 2 ;;
@@ -134,6 +137,11 @@ if [[ $UPDATE_OPENCLAW -eq 1 ]]; then
   echo "OpenClaw config: $OPENCLAW_CONFIG"
   echo "OpenClaw provider: $OPENCLAW_PROVIDER"
   echo "OpenClaw model ref: $OPENCLAW_MODEL"
+  if [[ $RESTART_GATEWAY -eq 1 ]]; then
+    echo "Gateway restart: enabled after config update"
+  else
+    echo "Gateway restart: disabled by request"
+  fi
 fi
 [[ $ALL_AGENTS -eq 1 ]] && echo "Agent overrides: managed models will be updated"
 
@@ -196,6 +204,19 @@ if [[ $UPDATE_OPENCLAW -eq 1 ]]; then
       echo "OpenClaw validation failed; restored backup." >&2
       exit 1
     fi
+    if [[ $RESTART_GATEWAY -eq 1 ]]; then
+      if ! openclaw gateway restart >/dev/null 2>&1; then
+        echo "OpenClaw config updated, but gateway restart failed. Run: openclaw gateway restart" >&2
+        exit 1
+      fi
+      if ! openclaw gateway status >/dev/null 2>&1; then
+        echo "Gateway restart command completed, but status check failed." >&2
+        exit 1
+      fi
+      echo "OpenClaw gateway restarted and status checked."
+    fi
+  elif [[ $RESTART_GATEWAY -eq 1 ]]; then
+    echo "Skipped gateway restart: custom OpenClaw config path is not the active default." >&2
   fi
 fi
 
