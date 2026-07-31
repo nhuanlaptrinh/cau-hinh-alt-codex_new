@@ -386,3 +386,101 @@ API key được lưu qua biến ALT_KEY, không ghi vào config hoặc báo cá
 Kiểm tra gateway: HTTP <mã>.
 Đã yêu cầu restart hoàn toàn Antigravity và mở phiên Codex mới.
 ```
+
+## Bổ Sung: Telegram OpenClaw - Model Hiển Thị Cũ Hoặc Runtime Codex
+
+Phần này bổ sung cho workflow cũ, không thay thế các quy tắc phía trên.
+
+### Phạm Vi
+
+- Áp dụng khi người dùng đổi model mặc định OpenClaw nhưng hỏi qua Telegram vẫn nhận câu trả lời kiểu `đang chạy 9r/codex` hoặc `/model status` hiển thị model mới nhưng runtime cũ.
+- Chỉ sửa đúng VPS/runtime được người dùng chỉ định. Không tự sửa runtime phụ hoặc member VPS.
+- Không bật reasoning/thinking mặc định nếu người dùng không yêu cầu. Với workflow này, giữ reasoning ở trạng thái tắt; không tự thêm `reasoningDefault: "on"` hoặc `thinkingDefault`.
+
+### Phân Biệt Model Và Runtime
+
+- `Current`/`Selected` là model được chọn, ví dụ `9r/GPT-5.6-luna`.
+- `Active` là runtime thực thi, ví dụ `9r/codex` hoặc runtime `openclaw`.
+- Câu trả lời tự nhận model cũ trên Telegram không đủ để kết luận. Phải đối chiếu log request thực tế có dạng `model-fetch ... provider=9r ... model=<model>`.
+- Nếu muốn dùng runtime OpenClaw, đặt policy ở provider/model scope, không chỉ đổi `agents.defaults.model.primary`:
+
+```json5
+{
+  "agents": {
+    "defaults": {
+      "models": {
+        "9r/GPT-5.6-luna": {
+          "agentRuntime": { "id": "openclaw" }
+        }
+      }
+    }
+  },
+  "models": {
+    "providers": {
+      "9r": {
+        "agentRuntime": { "id": "openclaw" }
+      }
+    }
+  }
+}
+```
+
+Không chép nguyên mẫu trên vào config nếu provider hiện tại không phải `9r`; luôn đọc provider/model đang dùng trước.
+
+### Kiểm Tra Agent Telegram
+
+1. Xác định binding Telegram tới agent nào:
+
+```bash
+jq '.bindings, .agents.list' /root/.openclaw/openclaw.json
+```
+
+2. Kiểm tra model mặc định và allowlist của đúng agent; không in `apiKey`, `auth.json`, cookie hoặc credential:
+
+```bash
+openclaw models status --agent <agent-id> --json
+jq '{providers:(.providers|to_entries|map({id:.key,models:(.value.models|map(.id))}))}' \
+  /root/.openclaw/agents/<agent-id>/agent/models.json
+```
+
+3. Kiểm tra session Telegram có đang ghim model cũ không. Nếu session entry có `model: "codex"` hoặc model cũ, gửi trong đúng chat:
+
+```text
+/model default
+```
+
+`/model default` xóa model override của session để session kế thừa model mặc định; `/new` chỉ tạo session mới và không nên được coi là thao tác xóa override model duy nhất.
+
+4. Nếu cần kiểm tra session cụ thể mà không gửi tin thật ra Telegram, dùng session key đúng agent/channel qua CLI; không dùng `--deliver`:
+
+```bash
+openclaw agent --agent <agent-id> \
+  --session-key 'telegram:direct:<chat-id>' \
+  --message '/model default' --json
+```
+
+### Hot Reload Và Restart Gateway
+
+- Sau khi sửa config, chạy `openclaw config validate` và kiểm tra log `config hot reload applied`.
+- Hot reload có thể cập nhật config nhưng session Telegram đang chạy vẫn giữ runtime/model cũ. Nếu `/model status` hoặc log request vẫn dùng model/runtime cũ, backup đã tạo và restart Gateway:
+
+```bash
+openclaw config validate
+openclaw gateway restart
+openclaw gateway status
+```
+
+- Sau restart, tạo session Telegram mới hoặc gửi `/model default`, rồi kiểm tra lại `/model status`.
+- Không báo hoàn tất chỉ dựa trên file JSON. Tiêu chí đạt là log request mới nhất dùng đúng `provider=... model=<model-yêu-cầu>` và Telegram không còn tự nhận model cũ.
+
+### Reasoning Mặc Định
+
+- Không bật reasoning/thinking khi chỉ đổi model, trừ khi người dùng yêu cầu rõ.
+- Giữ nguyên `reasoningDefault`/`thinkingDefault` nếu đã có; nếu workflow mới tạo cấu hình và người dùng không yêu cầu reasoning, để mặc định tắt.
+- Khi báo cáo, tách riêng model, runtime và reasoning; không gộp `9r/codex` thành tên model nếu log cho thấy đó chỉ là runtime.
+
+### An Toàn Và Bàn Giao
+
+- Backup `openclaw.json`, catalog riêng của agent và session metadata nếu chuẩn bị sửa production.
+- Không ghi API key thật vào skill. Khi đọc config để chẩn đoán, chỉ in provider, model, runtime và trạng thái `set/missing` của credential.
+- Sau thay đổi quan trọng, ghi backup, lệnh validate, kết quả log request và tình trạng restart vào nhật ký VPS.
