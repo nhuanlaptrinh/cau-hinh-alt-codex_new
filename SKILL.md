@@ -11,7 +11,7 @@ Cấu hình Codex Extension trong Antigravity và Codex CLI trên máy khác the
 
 ```toml
 model_provider = "alt"
-model = "GPT-5.6"
+model = "GPT-5.6-sol"
 model_reasoning_effort = "medium"
 
 [model_providers.alt]
@@ -211,7 +211,7 @@ Lưu ý: `launchctl setenv` không phải cơ chế lưu secret bền vững qua
 Nếu file đã có nhiều cấu hình, không thay toàn bộ file bằng một heredoc. Hãy sửa TOML có chủ đích:
 
 - Đảm bảo `model_provider = "alt"`.
-- Đảm bảo `model = "GPT-5.6"`.
+- Đảm bảo `model = "GPT-5.6-sol"`.
 - Đảm bảo `model_reasoning_effort = "medium"`, trừ khi người dùng yêu cầu mức khác.
 - Tạo hoặc cập nhật `[model_providers.alt]` với `name`, `base_url`, `env_key` như mẫu.
 - Giữ nguyên mọi bảng `[projects."..."]`, MCP và cấu hình khác.
@@ -262,7 +262,7 @@ Extension có thể chạy trong môi trường GUI khác terminal. Kiểm tra b
 ## Tiêu Chí Hoàn Tất
 
 - `config.toml` đúng đường dẫn của user chạy Antigravity.
-- Provider là `alt`, model là `GPT-5.6`, endpoint là `https://codex.anhlaptrinh.vn/v1`.
+- Provider là `alt`, model là `GPT-5.6-sol`, endpoint là `https://codex.anhlaptrinh.vn/v1`.
 - `env_key = "ALT_KEY"`, không có API key thật trong file.
 - Biến môi trường tồn tại trong đúng GUI/login session.
 - `/v1/models` trả `200` khi gửi key hợp lệ.
