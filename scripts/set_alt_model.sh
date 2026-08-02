@@ -2,6 +2,15 @@
 set -euo pipefail
 
 MODEL=""
+SUPPORTED_MODELS=(
+  "gpt-5.4"
+  "gpt-5.5"
+  "GPT-5.6"
+  "GPT-5.6-sol"
+  "GPT-5.6-terra"
+  "GPT-5.6-luna"
+)
+SUPPORTED_MODELS_TEXT="gpt-5.4, gpt-5.5, GPT-5.6, GPT-5.6-sol, GPT-5.6-terra, GPT-5.6-luna"
 CODEX_CONFIG="${CODEX_HOME:-$HOME/.codex}/config.toml"
 ACTIVE_OPENCLAW_CONFIG="${OPENCLAW_CONFIG_PATH:-$HOME/.openclaw/openclaw.json}"
 OPENCLAW_CONFIG="$ACTIVE_OPENCLAW_CONFIG"
@@ -14,10 +23,10 @@ UPDATE_OPENCLAW=1
 RESTART_GATEWAY=1
 
 usage() {
-  cat <<'EOF'
+  cat <<EOF
 Usage: set_alt_model.sh --model MODEL [options]
 
-Models: GPT-5.6-sol, GPT-5.6-terra, GPT-5.6-luna
+Models: $SUPPORTED_MODELS_TEXT
 
 Options:
   --all-agents              Update managed model overrides in agents.list
@@ -34,8 +43,15 @@ EOF
 }
 
 normalize_model() {
-  local normalized
-  normalized=$(printf '%s' "$1" | tr '[:upper:]_' '[:lower:] ' | sed -E 's/[[:space:]]+/-/g; s/-+/-/g; s/^-|-$//g')
+  local requested normalized
+  requested=$(printf '%s' "$1" | sed -E 's/^[[:space:]]+//; s/[[:space:]]+$//')
+  case "$requested" in
+    gpt-5.4|GPT-5.4) printf '%s' 'gpt-5.4'; return ;;
+    gpt-5.5|GPT-5.5) printf '%s' 'gpt-5.5'; return ;;
+    GPT-5.6|gpt-5.6) printf '%s' 'GPT-5.6'; return ;;
+  esac
+
+  normalized=$(printf '%s' "$requested" | tr '[:upper:]_' '[:lower:] ' | sed -E 's/[[:space:]]+/-/g; s/-+/-/g; s/^-|-$//g')
   case "$normalized" in
     gpt-5.6-sol) printf '%s' 'GPT-5.6-sol' ;;
     gpt-5.6-terra) printf '%s' 'GPT-5.6-terra' ;;
@@ -68,7 +84,7 @@ if [[ -z "$MODEL" ]]; then
 fi
 
 if ! MODEL=$(normalize_model "$MODEL"); then
-  echo "Unsupported model. Choose GPT-5.6-sol, GPT-5.6-terra, or GPT-5.6-luna." >&2
+  echo "Unsupported model. Choose one of: $SUPPORTED_MODELS_TEXT." >&2
   exit 2
 fi
 
@@ -104,6 +120,9 @@ detect_openclaw_provider() {
     | to_entries[]
     | select(any(.value.models[]?;
         .id == "codex" or
+        .id == "gpt-5.4" or
+        .id == "gpt-5.5" or
+        .id == "GPT-5.6" or
         .id == "GPT-5.6-sol" or
         .id == "GPT-5.6-terra" or
         .id == "GPT-5.6-luna"))
@@ -170,12 +189,15 @@ if [[ $UPDATE_OPENCLAW -eq 1 ]]; then
   jq --arg model "$MODEL" --arg ref "$OPENCLAW_MODEL" --arg provider "$OPENCLAW_PROVIDER" --argjson allAgents "$ALL_AGENTS" '
     def managed($provider):
       . == ($provider + "/codex") or
+      . == ($provider + "/gpt-5.4") or
+      . == ($provider + "/gpt-5.5") or
+      . == ($provider + "/GPT-5.6") or
       . == ($provider + "/GPT-5.6-sol") or
       . == ($provider + "/GPT-5.6-terra") or
       . == ($provider + "/GPT-5.6-luna");
     .models.providers[$provider].models = (
       (.models.providers[$provider].models // []) as $existing
-      | ["GPT-5.6-sol", "GPT-5.6-terra", "GPT-5.6-luna"] as $managedIds
+      | ["gpt-5.4", "gpt-5.5", "GPT-5.6", "GPT-5.6-sol", "GPT-5.6-terra", "GPT-5.6-luna"] as $managedIds
       | ($existing | map(select((.id as $id | $managedIds | index($id)) == null))) +
         ($managedIds | map({
           id: ., name: .,

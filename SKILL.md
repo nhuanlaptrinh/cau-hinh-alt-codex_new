@@ -1,6 +1,6 @@
 ---
 name: cau-hinh-alt-codex
-description: Cài đặt, sửa hoặc đổi đồng bộ model Codex Extension/Codex CLI và OpenClaw qua ALT/9Router trên Windows, Linux, macOS hoặc VPS. Use khi cần chọn GPT-5.6-sol/GPT-5.6-terra/GPT-5.6-luna, cập nhật user config của Codex, đổi model mặc định hoặc model ghim theo agent trong OpenClaw, kiểm tra /v1/models, backup config, hoặc xử lý lỗi provider/model mà không làm lộ API key.
+description: Cài đặt, sửa hoặc đổi đồng bộ model Codex Extension/Codex CLI và OpenClaw qua ALT/9Router trên Windows, Linux, macOS hoặc VPS. Use khi cần chuẩn hóa GPT-5.4 thành gpt-5.4, GPT-5.5 thành gpt-5.5, gpt-5.6 thành GPT-5.6, chọn các biến thể GPT-5.6-sol/GPT-5.6-terra/GPT-5.6-luna, cập nhật user config của Codex, đổi model mặc định hoặc model ghim theo agent trong OpenClaw, kiểm tra /v1/models, backup config, hoặc xử lý lỗi provider/model mà không làm lộ API key.
 ---
 
 # Cấu Hình Codex Qua ALT Gateway Đa Nền Tảng
@@ -34,41 +34,51 @@ Trường hợp cấu hình Codex Extension: API key được cập nhật trự
 
 ## Model Được Hỗ Trợ
 
-Skill chỉ được cấu hình một trong ba model sau:
+Skill chỉ được cấu hình một trong sáu model sau:
 
+- `gpt-5.4`: dùng khi người dùng yêu cầu đúng model ID chữ thường này.
+- `gpt-5.5`: dùng khi người dùng yêu cầu đúng model ID chữ thường này.
+- `GPT-5.6`: dùng khi người dùng yêu cầu GPT-5.6 không kèm hậu tố; không tự đổi thành `GPT-5.6-sol`.
 - `GPT-5.6-sol`: model mặc định khi người dùng không yêu cầu model cụ thể.
 - `GPT-5.6-terra`: dùng khi người dùng yêu cầu model này hoặc một cách viết tương đương.
 - `GPT-5.6-luna`: dùng khi người dùng yêu cầu model này hoặc một cách viết tương đương.
 
-Nhận diện tên model không phân biệt chữ hoa/chữ thường. Chấp nhận dấu gạch ngang hoặc khoảng trắng giữa các phần của tên model, đồng thời bỏ khoảng trắng thừa trước khi so khớp. Ví dụ:
+Ba model nền có ID chính thức là `gpt-5.4`, `gpt-5.5`, `GPT-5.6`. Khi câu lệnh của khách chứa cách viết tương ứng, luôn chuẩn hóa theo ánh xạ:
+
+- `GPT-5.4` hoặc `gpt-5.4` -> `gpt-5.4`.
+- `GPT-5.5` hoặc `gpt-5.5` -> `gpt-5.5`.
+- `gpt-5.6` hoặc `GPT-5.6` -> `GPT-5.6`.
+
+Riêng ba biến thể có hậu tố tiếp tục được nhận diện không phân biệt chữ hoa/chữ thường; chấp nhận dấu gạch ngang, dấu gạch dưới hoặc khoảng trắng giữa các phần. Ví dụ:
 
 - `GPT-5.6-luna`, `gpt-5.6-luna`, `GPT-5.6-LUNA` và `gpt 5.6 luna` đều phải được hiểu là `GPT-5.6-luna`.
 - `GPT-5.6-terra`, `gpt-5.6-terra` và `gpt 5.6 terra` đều phải được hiểu là `GPT-5.6-terra`.
 - `GPT-5.6-sol`, `gpt-5.6-sol` và `gpt 5.6 sol` đều phải được hiểu là `GPT-5.6-sol`.
 
-Sau khi nhận diện, luôn chuẩn hóa và ghi tên chính thức vào `config.toml`: `GPT-5.6-sol`, `GPT-5.6-terra` hoặc `GPT-5.6-luna`. Không ghi nguyên cách viết chữ thường hoặc cách viết có khoảng trắng của người dùng vào file.
+Sau khi nhận diện, luôn ghi đúng một tên chính thức vào `config.toml`: `gpt-5.4`, `gpt-5.5`, `GPT-5.6`, `GPT-5.6-sol`, `GPT-5.6-terra` hoặc `GPT-5.6-luna`. Không giữ nguyên casing chưa chuẩn hóa từ câu lệnh của khách.
 
-Khi người dùng yêu cầu `GPT-5.6-terra`, `GPT-5.6-luna` hoặc cách viết tương đương, cập nhật khóa `model` trong `config.toml` thành tên chính thức tương ứng. Nếu dùng bộ file mẫu đi kèm skill, copy file theo workflow rồi chỉ đổi khóa `model`, không thay đổi các cấu hình không liên quan.
+Khi người dùng yêu cầu đúng một model nền hoặc cách viết tương đương của biến thể có hậu tố, cập nhật khóa `model` trong `config.toml` thành tên chính thức tương ứng. Nếu dùng bộ file mẫu đi kèm skill, copy file theo workflow rồi chỉ đổi khóa `model`, không thay đổi các cấu hình không liên quan.
 
-Nếu người dùng yêu cầu bất kỳ model nào ngoài ba model trên, không cập nhật cấu hình và không tự động thay thế bằng model gần giống. Hãy thông báo rằng hiện tại chỉ hỗ trợ `GPT-5.6-sol`, `GPT-5.6-terra` và `GPT-5.6-luna`, rồi yêu cầu họ chọn một trong ba model này.
+Nếu người dùng yêu cầu bất kỳ model nào ngoài sáu model trên, không cập nhật cấu hình và không tự động thay thế bằng model gần giống. Hãy thông báo đầy đủ danh sách model được hỗ trợ rồi yêu cầu họ chọn một model trong danh sách.
 
 ## Chính Sách Chọn Model
 
+- `gpt-5.4`, `gpt-5.5`, `GPT-5.6`: chuẩn hóa alias theo ánh xạ phía trên; không tự nâng cấp, hạ cấp hoặc gắn thêm hậu tố.
 - `GPT-5.6-sol`: mặc định cân bằng cho coding/agent phức tạp; dùng khi người dùng không chỉ định model.
 - `GPT-5.6-terra`: lựa chọn cân bằng tốc độ và chất lượng cho công việc hằng ngày.
 - `GPT-5.6-luna`: ưu tiên tốc độ và chi phí cho tác vụ nhẹ.
-- Codex ghi model dạng `GPT-5.6-*`.
-- OpenClaw dùng provider/model dạng `<provider-hien-tai>/GPT-5.6-*`. Prefix provider có thể là `9r`, `9k`, `8r`, `8k` hoặc tên khác; phải đọc cấu hình hiện tại, không được hardcode.
+- Codex ghi chính xác model ID đã chọn, ví dụ `gpt-5.5` hoặc `GPT-5.6-terra`.
+- OpenClaw dùng provider/model dạng `<provider-hien-tai>/<model-id>`, ví dụ `9r/gpt-5.5` hoặc `9r/GPT-5.6-terra`. Prefix provider có thể là `9r`, `9k`, `8r`, `8k` hoặc tên khác; phải đọc cấu hình hiện tại, không được hardcode.
 - Khi cài mới, sửa provider hoặc đồng bộ VPS/OpenClaw, xác minh model xuất hiện trong endpoint `/v1/models` của gateway đang dùng. Riêng yêu cầu chỉ đổi model trên máy tính thì không test gateway trừ khi người dùng yêu cầu.
 
 ## Chỉ Đổi Model Trên Máy Tính
 
 Áp dụng workflow này khi người dùng chỉ yêu cầu đổi model Codex trên máy tính, ví dụ “đổi sang GPT-5.6-terra”, mà không yêu cầu đồng bộ VPS, đổi OpenClaw, copy bộ file mẫu, đổi API key hoặc kiểm tra gateway.
 
-1. Chuẩn hóa model theo mục **Model Được Hỗ Trợ**. Nếu model không nằm trong ba model được hỗ trợ, dừng trước khi sửa file.
+1. Chuẩn hóa model theo mục **Model Được Hỗ Trợ**, bao gồm ba ánh xạ casing của model nền. Nếu model không nằm trong sáu model được hỗ trợ, dừng trước khi sửa file.
 2. Resolve `config.toml` của user hiện tại bằng `$CODEX_HOME` hoặc thư mục `.codex` trong home; không dùng file `config.toml` nằm cạnh `SKILL.md` nếu người dùng không yêu cầu copy bộ file mẫu.
 3. Backup `config.toml` hiện tại với timestamp trước khi ghi nếu file đã tồn tại.
-4. Chỉ cập nhật khóa top-level `model` thành tên chính thức `GPT-5.6-sol`, `GPT-5.6-terra` hoặc `GPT-5.6-luna`; giữ nguyên `model_provider`, `model_reasoning_effort`, `[model_providers.*]`, `[projects.*]`, MCP và mọi cấu hình khác.
+4. Chỉ cập nhật khóa top-level `model` thành một trong sáu model ID chính thức; giữ nguyên `model_provider`, `model_reasoning_effort`, `[model_providers.*]`, `[projects.*]`, MCP và mọi cấu hình khác.
 5. Không đọc/sửa `auth.json`, không copy file, không sửa OpenClaw, không restart gateway/Antigravity và không test `/v1/models` trừ khi người dùng yêu cầu riêng.
 6. Sau khi ghi, chỉ xác nhận `config.toml` tồn tại và khóa `model` đã nhận đúng giá trị; báo cáo đường dẫn thực tế và model mới, không in secret.
 
@@ -107,12 +117,12 @@ bash "$ALT_CODEX_SKILL_DIR/scripts/set_alt_model.sh" \
 
 Script thực hiện:
 
-1. Chỉ chấp nhận `GPT-5.6-sol`, `GPT-5.6-terra`, `GPT-5.6-luna` và cách viết tương đương.
+1. Chấp nhận `GPT-5.4`/`gpt-5.4`, `GPT-5.5`/`gpt-5.5`, `gpt-5.6`/`GPT-5.6` và ba biến thể có hậu tố; luôn ghi về sáu model ID chính thức.
 2. Backup file vào `${ALT_CODEX_BACKUP_DIR:-${XDG_STATE_HOME:-$HOME/.local/state}/cau-hinh-alt-codex/backups}` trước khi ghi; cho phép đổi bằng `ALT_CODEX_BACKUP_DIR` hoặc `--backup-dir`.
 3. Chỉ đổi khóa `model` cấp cao trong Codex config; giữ nguyên provider, projects, MCP và cấu hình khác.
-4. Tự phát hiện provider từ `agents.defaults.model.primary`, xác nhận provider đó tồn tại trong `models.providers`, rồi đăng ký đủ ba model vào đúng provider.
+4. Tự phát hiện provider từ `agents.defaults.model.primary`, xác nhận provider đó tồn tại trong `models.providers`, rồi đăng ký đủ sáu model vào đúng provider.
 5. Đổi `agents.defaults.model.primary` và thêm model vào `agents.defaults.models`.
-6. Khi có `--all-agents`, chỉ thay các agent đang ghim `codex` hoặc một trong ba model được quản lý thuộc đúng provider vừa phát hiện; không đụng agent dùng provider khác.
+6. Khi có `--all-agents`, chỉ thay các agent đang ghim `codex` hoặc một trong sáu model được quản lý thuộc đúng provider vừa phát hiện; không đụng agent dùng provider khác.
 7. Validate JSON/OpenClaw sau khi ghi; nếu validation lỗi thì khôi phục backup vừa tạo.
 8. Tự động chạy `openclaw gateway restart` và kiểm tra `openclaw gateway status` sau khi sửa config OpenClaw đang hoạt động.
 
@@ -180,7 +190,7 @@ Không in `auth.json`, API key hoặc toàn bộ `openclaw.json` trong báo cáo
 - Đồng bộ cách cấu hình từ user config Codex trên VPS sang máy khác.
 - Sửa lỗi provider, model, endpoint, biến môi trường hoặc lỗi `401`/không kết nối.
 - Cấu hình Codex CLI và extension dùng chung user-level config.
-- Đổi model giữa `GPT-5.6-sol`, `GPT-5.6-terra` và `GPT-5.6-luna` theo yêu cầu của người dùng.
+- Đổi model giữa `gpt-5.4`, `gpt-5.5`, `GPT-5.6`, `GPT-5.6-sol`, `GPT-5.6-terra` và `GPT-5.6-luna` theo yêu cầu của người dùng.
 - Khi người dùng chỉ nói đổi model trên máy tính, sửa trực tiếp khóa `model` trong user `config.toml` theo mục **Chỉ Đổi Model Trên Máy Tính**.
 - Đổi cùng một model cho Codex và OpenClaw trên VPS, bao gồm các agent đang ghim model cũ khi người dùng yêu cầu áp dụng toàn bộ.
 
@@ -280,7 +290,7 @@ Sau khi chạy, chỉ xác nhận hai file đích tồn tại; không đọc ho�
 9. Khi người dùng yêu cầu kiểm tra, test endpoint `/v1/models`, rồi restart hoàn toàn Antigravity/Codex Extension.
 10. Mở phiên Codex mới và xác nhận provider/model hoạt động.
 
-Khi đổi model, chuẩn hóa cách viết không phân biệt hoa/thường và chấp nhận dấu gạch ngang hoặc khoảng trắng như mô tả ở mục **Model Được Hỗ Trợ**. Chỉ ghi tên chính thức `GPT-5.6-sol`, `GPT-5.6-terra` hoặc `GPT-5.6-luna` vào khóa `model`. Nếu không thể chuẩn hóa yêu cầu thành một trong ba model này, thông báo danh sách model được hỗ trợ và dừng trước khi sửa cấu hình.
+Khi đổi model, chuẩn hóa `GPT-5.4` về `gpt-5.4`, `GPT-5.5` về `gpt-5.5`, `gpt-5.6` về `GPT-5.6`; tiếp tục chuẩn hóa không phân biệt hoa/thường và dấu phân cách cho ba biến thể có hậu tố. Chỉ ghi một trong sáu model ID chính thức vào khóa `model`; nếu không khớp, thông báo danh sách hỗ trợ và dừng trước khi sửa cấu hình.
 
 ## Windows PowerShell
 
@@ -396,7 +406,7 @@ Nếu file đã có nhiều cấu hình, không thay toàn bộ file bằng mộ
 
 - Đảm bảo `model_provider = "alt"`.
 - Đảm bảo `model` là model người dùng đã chọn trong danh sách hỗ trợ; mặc định là `GPT-5.6-sol`.
-- Chuẩn hóa cách viết của người dùng về `GPT-5.6-sol`, `GPT-5.6-terra` hoặc `GPT-5.6-luna`; không ghi model khác, tên chữ thường hoặc tên có khoảng trắng vào config.
+- Chuẩn hóa ba model nền về `gpt-5.4`, `gpt-5.5`, `GPT-5.6`; chuẩn hóa ba biến thể có hậu tố về tên chính thức và không ghi model ngoài danh sách vào config.
 - Đảm bảo `model_reasoning_effort = "medium"`, trừ khi người dùng yêu cầu mức khác.
 - Tạo hoặc cập nhật `[model_providers.alt]` với `name`, `base_url`, `env_key` như mẫu.
 - Giữ nguyên mọi bảng `[projects."..."]`, MCP và cấu hình khác.
@@ -448,7 +458,7 @@ Extension có thể chạy trong môi trường GUI khác terminal. Kiểm tra b
 
 - `config.toml` và `auth.json` được copy đúng vào thư mục `.codex` của user chạy Antigravity (`%USERPROFILE%\.codex` hoặc `$CODEX_HOME`).
 - `auth.json` chứa `OPENAI_API_KEY` hợp lệ, không cần tạo biến môi trường hệ thống khi cấu hình extension.
-- Provider trong `config.toml` chỉ tới `https://codex.anhlaptrinh.vn/v1`, model là một trong `GPT-5.6-sol`, `GPT-5.6-terra` hoặc `GPT-5.6-luna`.
+- Provider trong `config.toml` chỉ tới `https://codex.anhlaptrinh.vn/v1`, model là một trong sáu model ID chính thức sau khi chuẩn hóa casing.
 - Không có API key thật xuất hiện trong file log hay chat response.
 - Antigravity/Codex Extension đã restart và phiên Codex mới hoạt động.
 
@@ -457,7 +467,7 @@ Extension có thể chạy trong môi trường GUI khác terminal. Kiểm tra b
 ```text
 Đã cấu hình Codex Extension/Codex CLI dùng ALT Gateway trên <Windows|Linux|macOS>.
 File cấu hình: <đường dẫn config.toml>.
-Model: <GPT-5.6-sol|GPT-5.6-terra|GPT-5.6-luna>.
+Model: <gpt-5.4|gpt-5.5|GPT-5.6|GPT-5.6-sol|GPT-5.6-terra|GPT-5.6-luna>.
 API key được lưu qua biến ALT_KEY, không ghi vào config hoặc báo cáo.
 Kiểm tra gateway: HTTP <mã>.
 Đã yêu cầu restart hoàn toàn Antigravity và mở phiên Codex mới.
